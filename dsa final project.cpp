@@ -243,69 +243,108 @@ public:
 // ======================================================
 //               MODULE 2: PLAYER MANAGEMENT
 // ======================================================
+// This class handles all player-related actions in the UNO game
 class PlayerManagement {
 public:
 
-    // Display a player's hand
+    // -------------------------------------------------
+    // Display all cards in a player's hand
+    // -------------------------------------------------
     void displayPlayerHand(string name, Card hand[], int size) {
-        cout << "\n--- " << name << "'s Hand ---\n";
-        for (int i = 0; i < size; i++)
-            cout << i + 1 << ". " << hand[i].toString() << endl;
+        cout << "\n--- " << name << "'s Hand ---\n";   // Display player name
+        for (int i = 0; i < size; i++)                  // Loop through player's cards
+            cout << i + 1 << ". " << hand[i].toString() << endl;  // Show each card with index
         cout << endl;
     }
 
-    // Check if a card can be played on top of the current card
+    // -------------------------------------------------
+    // Check whether the played card is valid or not
+    // -------------------------------------------------
     bool isValidMove(Card played, Card top) {
-        if (played.type == WILD_CARD || played.type == WILD_DRAW_FOUR) return true;
-        if (played.color == top.color) return true;
-        if (played.type == NUMBER && top.type == NUMBER && played.value == top.value) return true;
-        if (played.type != NUMBER && played.type == top.type) return true;
+
+        // Wild cards can always be played
+        if (played.type == WILD_CARD || played.type == WILD_DRAW_FOUR) 
+            return true;
+
+        // If colors match, the move is valid
+        if (played.color == top.color) 
+            return true;
+
+        // If both are number cards and values are same
+        if (played.type == NUMBER && top.type == NUMBER && played.value == top.value) 
+            return true;
+
+        // If both are special cards of the same type
+        if (played.type != NUMBER && played.type == top.type) 
+            return true;
+
+        // Otherwise, it is an invalid move
         return false;
     }
 
-    // Check for UNO penalty
+    // -------------------------------------------------
+    // Check whether the player correctly calls UNO
+    // -------------------------------------------------
     void checkUNO(string name, Card hand[], int &handSize, DeckManagement &deck) {
+
+        // If player has only 1 card left
         if (handSize == 1) {
+
             cout << "\nYou have 1 card left! Say 'UNO': ";
             string call;
             cin >> call;
 
+            // If player fails to say UNO correctly
             if (call != "UNO" && call != "uno") {
                 cout << "\nYou failed to say UNO! Drawing 2 penalty cards.\n";
+
+                // Draw two penalty cards
                 if (!deck.isDeckEmpty()) hand[handSize++] = deck.drawCard();
                 if (!deck.isDeckEmpty()) hand[handSize++] = deck.drawCard();
             }
         }
     }
 
-    // Handle a player's turn
+    // -------------------------------------------------
+    // Handles the complete turn of a single player
+    // -------------------------------------------------
     bool playerTurn(string name, Card hand[], int &handSize, Card &topCard,
                     DeckManagement &deck, bool &playedThisTurn)
     {
-        playedThisTurn = false; // default: no card played
+        playedThisTurn = false;   // Assume no card is played initially
+
+        // Display the player's hand
         displayPlayerHand(name, hand, handSize);
 
+        // Display the top card on the discard pile
         cout << "Top card: " << topCard.toString() << endl;
+
+        // If the top card is a wild card, show chosen color
         if (topCard.type == WILD_CARD || topCard.type == WILD_DRAW_FOUR)
             cout << "Current color: " << topCard.getColorNameColored() << endl;
 
+        // Ask player to choose a card number or 0 to draw
         cout << name << ", choose a card to play (0 to draw): ";
         int choice;
         cin >> choice;
 
-        // Player chooses to draw
+        // -------------------------------------------------
+        // If player chooses to draw a card
+        // -------------------------------------------------
         if (choice == 0) {
             if (!deck.isDeckEmpty()) {
                 Card newCard = deck.drawCard();
                 cout << "You drew: " << newCard.toString() << "\n";
-                hand[handSize++] = newCard;
+                hand[handSize++] = newCard;   // Add drawn card to hand
             } else {
                 cout << "Deck is empty — cannot draw.\n";
             }
-            return false;
+            return false;   // Turn ends without playing
         }
 
-        // Validate choice index
+        // -------------------------------------------------
+        // Validate the selected card index
+        // -------------------------------------------------
         int index = choice - 1;
         if (index < 0 || index >= handSize) {
             cout << "Invalid choice! You draw 1 card.\n";
@@ -316,7 +355,9 @@ public:
             return false;
         }
 
-        // Validate move
+        // -------------------------------------------------
+        // Validate whether the selected card is playable
+        // -------------------------------------------------
         if (!isValidMove(hand[index], topCard)) {
             cout << "Invalid move! You draw 1 card.\n";
             if (!deck.isDeckEmpty()) {
@@ -326,98 +367,176 @@ public:
             return false;
         }
 
+        // -------------------------------------------------
         // VALID MOVE
+        // -------------------------------------------------
         cout << name << " played: " << hand[index].toString() << endl;
-        topCard = hand[index];
-        playedThisTurn = true;
 
-        // Remove played card from hand
+        topCard = hand[index];    // Update the top card
+        playedThisTurn = true;    // Mark that a card was played
+
+        // Remove the played card from the player's hand
         for (int i = index; i < handSize - 1; i++)
             hand[i] = hand[i + 1];
-        handSize--;
 
+        handSize--;   // Reduce hand size
+
+        // -------------------------------------------------
         // WIN CHECK
+        // -------------------------------------------------
         if (handSize == 0) {
-            cout << "\n" << name << " has no cards left! " << name << " WINS the game!\n";
-            return true;   // GAME ENDS
+            cout << "\n" << name << " has no cards left! " 
+                 << name << " WINS the game!\n";
+            return true;   // Game ends
         }
 
+        // Check for UNO rule
         checkUNO(name, hand, handSize, deck);
-        return false;
+
+        return false;  // Game continues
     }
 };
 
 // ======================================================
 //                     GAME RULES
 // ======================================================
+// This class handles all the game rules like direction, special cards, etc.
 class GameRules {
 private:
-    bool isClockwise;    // Direction of play
-    bool effectApplied;  // Ensure special card effects are applied only once
+    bool isClockwise;     // Stores the direction of play (true = clockwise, false = anti-clockwise)
+    bool effectApplied;   // Ensures special card effect is applied only once per turn
 
 public:
+    // Default constructor: game always starts in clockwise direction
     GameRules() : isClockwise(true), effectApplied(false) {}
 
-    // Get next player index based on current direction
+    // This function returns the index of the next player based on direction
     int nextPlayer(int current, int numPlayers) {
+        // If clockwise ? move forward, else ? move backward safely using modulo
         return isClockwise ? (current + 1) % numPlayers
                            : (current - 1 + numPlayers) % numPlayers;
     }
 
-    void reverseDirection() { isClockwise = !isClockwise; }
+    // This function reverses the direction of play
+    void reverseDirection() { 
+        isClockwise = !isClockwise;  // Toggles direction
+    }
 
-    // Convert string input to color enum
+    // Converts user input string into a Color enum value
     Color parseColor(string input) {
+        // Convert all letters of input to lowercase
         for (int i = 0; i < (int)input.size(); i++)
             input[i] = tolower(input[i]);
 
+        // Match input with valid colors
         if (input == "red") return RED;
         if (input == "blue") return BLUE;
         if (input == "green") return GREEN;
         if (input == "yellow") return YELLOW;
 
+        // If input does not match any valid color
         return UNKNOWN_COLOR;
     }
 
-    void resetEffectFlag() { effectApplied = false; }
+    // Resets the special card effect flag for the next turn
+    void resetEffectFlag() { 
+        effectApplied = false; 
+    }
 
-    // Apply special card effects like SKIP, DRAW_TWO, WILD, etc.
-    void applySpecialCard(Card &playedCard,
-                          int &currentPlayer,
-                          int numPlayers,
-                          Card playerHands[][50],
-                          int handSizes[],
-                          DeckManagement &deck)
+    // This function applies special effects of cards like SKIP, DRAW_TWO, WILD, etc.
+    void applySpecialCard(Card &playedCard,      // The card that was just played
+                          int &currentPlayer,    // Current player's index (passed by reference)
+                          int numPlayers,        // Total number of players
+                          Card playerHands[][50],// 2D array storing all player cards
+                          int handSizes[],       // Stores number of cards each player has
+                          DeckManagement &deck)  // Deck object to draw more cards
     {
-        if (effectApplied) return;  // prevent multiple applications
+        // Stop if effect was already applied
+        if (effectApplied) return;
+
+        // If card is a normal number card, no special effect applies
         if (playedCard.type == NUMBER) return;
 
+        // Apply effect based on card type
         switch (playedCard.type) {
+
+            // -------- SKIP CARD --------
             case SKIP: {
                 cout << "Next player is skipped!\n";
-                currentPlayer = nextPlayer(currentPlayer, numPlayers);
+                currentPlayer = nextPlayer(currentPlayer, numPlayers); // Skip next player
                 break;
             }
+
+            // -------- REVERSE CARD --------
             case REVERSE: {
                 if (numPlayers == 2) {
+                    // With only 2 players, reverse acts like skip
                     cout << "Reverse card played!\n";
                     currentPlayer = nextPlayer(currentPlayer, numPlayers);
                 } else {
+                    // With more than 2 players, reverse direction
                     cout << "Direction reversed!\n";
                     reverseDirection();
                 }
                 break;
             }
+
+            // -------- DRAW TWO CARD --------
             case DRAW_TWO: {
                 int next = nextPlayer(currentPlayer, numPlayers);
                 cout << "Player " << next + 1 << " draws 2 cards!\n";
-                for (int i = 0; i < 2; i++)
-                    if (!deck.isDeckEmpty())
+
+                // Next player draws two cards from the deck
+                for (int i = 0; i < 2; i++) {
+                    if (!deck.isDeckEmpty()) {
                         playerHands[next][handSizes[next]++] = deck.drawCard();
-                currentPlayer = next; // move to next player
+                    }
+                }
+
+                currentPlayer = next; // Turn moves to the next player
                 break;
             }
+
+            // -------- WILD CARD --------
             case WILD_CARD: {
+                string choice;
+
+                // Keep asking until valid color is entered
+                do {
+                    cout << "Choose a color: "
+                         << RED_COLOR << "red "
+                         << BLUE_COLOR << "blue "
+                         << GREEN_COLOR << "green "
+                         << YELLOW_COLOR << "yellow"
+                         << RESET_COLOR << "\n";
+
+                    cin >> choice;
+                    playedCard.color = parseColor(choice);
+
+                    // Display error for invalid input
+                    if (playedCard.color == UNKNOWN_COLOR)
+                        cout << "\033[31mERROR: Invalid color. Please enter red, blue, green, or yellow.\033[0m\n";
+
+                } while (playedCard.color == UNKNOWN_COLOR);
+
+                cout << "Color chosen: " << playedCard.getColorNameColored() << "\n";
+                break;
+            }
+
+            // -------- WILD DRAW FOUR CARD --------
+            case WILD_DRAW_FOUR: {
+                int next = nextPlayer(currentPlayer, numPlayers);
+
+                cout << "Player " << next + 1 << " draws 4 cards!\n";
+
+                // Next player draws four cards
+                for (int i = 0; i < 4; i++) {
+                    if (!deck.isDeckEmpty()) {
+                        playerHands[next][handSizes[next]++] = deck.drawCard();
+                    }
+                }
+
+                // Keep asking until valid color is entered
                 string choice;
                 do {
                     cout << "Choose a color: "
@@ -430,31 +549,21 @@ public:
                     cin >> choice;
                     playedCard.color = parseColor(choice);
 
+                    // Display error for invalid input
                     if (playedCard.color == UNKNOWN_COLOR)
                         cout << "\033[31mERROR: Invalid color. Please enter red, blue, green, or yellow.\033[0m\n";
 
                 } while (playedCard.color == UNKNOWN_COLOR);
 
                 cout << "Color chosen: " << playedCard.getColorNameColored() << "\n";
-                break;
-            }
-            case WILD_DRAW_FOUR: {
-                int next = nextPlayer(currentPlayer, numPlayers);
-                cout << "Player " << next + 1 << " draws 4 cards!\n";
-                for (int i = 0; i < 4; i++)
-                    if (!deck.isDeckEmpty())
-                        playerHands[next][handSizes[next]++] = deck.drawCard();
 
-                string choice;
-                cin >> choice;
-                playedCard.color = parseColor(choice);
-                cout << "Color chosen: " << playedCard.getColorNameColored() << "\n";
-
+                // Turn also moves to the next player
                 currentPlayer = next;
                 break;
             }
         }
 
+        // Mark effect as applied so it does not repeat
         effectApplied = true;
     }
 };
